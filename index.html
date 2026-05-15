@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>KE-Pollón POS</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -14,7 +14,21 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overscroll-behavior:none;}
-#app{display:flex;flex-direction:column;height:100dvh;max-width:430px;margin:0 auto;}
+#app{display:flex;flex-direction:column;height:100dvh;max-width:900px;margin:0 auto;width:100%;}
+@media(min-width:768px){
+  html,body{font-size:17px;}
+  .topbar img{height:50px;}
+  .pgrid{grid-template-columns:repeat(4,1fr);}
+  .sg{grid-template-columns:repeat(3,1fr);}
+  .sc.full{grid-column:1/-1;}
+  .view{padding:20px 28px;gap:16px;}
+  .botbar{padding:16px 28px;}
+  .tabs .tab{font-size:.78rem;padding:13px 0;}
+  .sheet{max-width:600px;}
+  .pcard .pbanner{height:90px;font-size:3.2rem;}
+  .hi{padding:14px 16px;}
+  .total-amt{font-size:2.4rem;}
+}
 
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 8px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
 .topbar img{height:38px;object-fit:contain;}
