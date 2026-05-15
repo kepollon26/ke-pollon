@@ -20,7 +20,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 @media(min-width:1024px){
   #app{flex-direction:column;}
   .topbar{padding:12px 32px;}
-  .topbar img{height:46px;}
+  .topbar img{height:64px;}
   .desktop-body{display:flex;flex:1;overflow:hidden;}
   /* Left panel: tabs + views */
   .left-panel{display:flex;flex-direction:column;flex:1;border-right:1px solid var(--border);overflow:hidden;}
@@ -46,7 +46,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 
 /* ── TABLET ── */
 @media(min-width:768px) and (max-width:1023px){
-  .topbar img{height:44px;}
+  .topbar img{height:60px;}
   .pgrid{grid-template-columns:repeat(4,1fr);}
   .sg{grid-template-columns:repeat(3,1fr);}
   .sc.full{grid-column:1/-1;}
@@ -69,7 +69,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 }
 
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 8px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
-.topbar img{height:38px;object-fit:contain;}
+.topbar img{height:52px;object-fit:contain;}
 .tr{text-align:right;}
 .tr strong{display:block;font-size:.82rem;color:var(--text);}
 .tr span{font-size:.7rem;color:var(--muted);}
@@ -159,8 +159,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .b-llevar{background:rgba(255,215,0,.15);color:var(--yellow);}
 .b-dom{background:rgba(39,174,96,.15);color:var(--green);}
 
-.btn-del{width:100%;background:transparent;border:1.5px solid rgba(204,0,0,.3);color:#E74C3C;border-radius:10px;font-family:'DM Sans',sans-serif;font-size:.85rem;font-weight:700;padding:12px;cursor:pointer;margin-top:4px;}
-.btn-del:active{background:rgba(204,0,0,.12);}
+
+
 
 /* OVERLAY */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);z-index:100;display:flex;align-items:flex-end;opacity:0;pointer-events:none;transition:opacity .25s;}
@@ -358,7 +358,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
       <div class="lbl" style="margin-bottom:8px;">Últimas ventas</div>
       <div class="hl" id="history-list"></div>
     </div>
-    <button class="btn-del" onclick="clearDay()">🗑 Borrar ventas del día</button>
+
     <div style="height:10px;flex-shrink:0;"></div>
   </div>
 
