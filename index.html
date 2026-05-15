@@ -14,20 +14,58 @@
 }
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;overscroll-behavior:none;}
-#app{display:flex;flex-direction:column;height:100dvh;max-width:900px;margin:0 auto;width:100%;}
-@media(min-width:768px){
-  html,body{font-size:17px;}
-  .topbar img{height:50px;}
+#app{display:flex;flex-direction:column;height:100dvh;width:100%;}
+
+/* ── DESKTOP LAYOUT ── */
+@media(min-width:1024px){
+  #app{flex-direction:column;}
+  .topbar{padding:12px 32px;}
+  .topbar img{height:46px;}
+  .desktop-body{display:flex;flex:1;overflow:hidden;}
+  /* Left panel: tabs + views */
+  .left-panel{display:flex;flex-direction:column;flex:1;border-right:1px solid var(--border);overflow:hidden;}
+  /* Right panel: order summary + cobrar */
+  .right-panel{width:360px;min-width:300px;display:flex;flex-direction:column;background:var(--surface);}
+  .right-panel-inner{flex:1;overflow-y:auto;padding:20px 18px;display:flex;flex-direction:column;gap:12px;}
+  .right-panel-title{font-size:.7rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
+  .tabs{border-bottom:1px solid var(--border);}
+  .tabs .tab{font-size:.75rem;padding:12px 0;}
+  .view{padding:20px 24px;gap:14px;}
   .pgrid{grid-template-columns:repeat(4,1fr);}
   .sg{grid-template-columns:repeat(3,1fr);}
   .sc.full{grid-column:1/-1;}
-  .view{padding:20px 28px;gap:16px;}
-  .botbar{padding:16px 28px;}
-  .tabs .tab{font-size:.78rem;padding:13px 0;}
+  .botbar{padding:16px 18px;}
   .sheet{max-width:600px;}
-  .pcard .pbanner{height:90px;font-size:3.2rem;}
-  .hi{padding:14px 16px;}
-  .total-amt{font-size:2.4rem;}
+  .pcard .pbanner{height:100px;font-size:3.4rem;}
+  .total-amt{font-size:2.2rem;}
+  /* Hide order section from left panel on desktop */
+  #venta-order-section{display:none;}
+  /* Show right panel */
+  .right-panel{display:flex;}
+}
+
+/* ── TABLET ── */
+@media(min-width:768px) and (max-width:1023px){
+  .topbar img{height:44px;}
+  .pgrid{grid-template-columns:repeat(4,1fr);}
+  .sg{grid-template-columns:repeat(3,1fr);}
+  .sc.full{grid-column:1/-1;}
+  .view{padding:18px 22px;gap:14px;}
+  .botbar{padding:14px 22px;}
+  .tabs .tab{font-size:.76rem;padding:12px 0;}
+  .sheet{max-width:580px;}
+  .pcard .pbanner{height:88px;font-size:3rem;}
+  .total-amt{font-size:2.2rem;}
+  .desktop-body{display:contents;}
+  .left-panel{display:contents;}
+  .right-panel{display:none;}
+}
+
+/* ── MOBILE ── */
+@media(max-width:767px){
+  .desktop-body{display:contents;}
+  .left-panel{display:contents;}
+  .right-panel{display:none;}
 }
 
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 8px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
@@ -184,6 +222,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     </div>
   </div>
 
+  <!-- DESKTOP WRAPPER -->
+  <div class="desktop-body">
+  <div class="left-panel">
+
   <!-- TABS -->
   <div class="tabs">
     <div class="tab active" onclick="switchTab('venta',this)">
@@ -290,7 +332,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     </div>
 
     <!-- Resumen pedido -->
-    <div>
+    <div id="venta-order-section">
       <div class="lbl" style="margin-bottom:8px;">Tu pedido</div>
       <div class="oi-list" id="order-items">
         <div class="empty">Agrega productos arriba 👆</div>
@@ -320,7 +362,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     <div style="height:10px;flex-shrink:0;"></div>
   </div>
 
-  <!-- BOTTOM BAR -->
+  <!-- BOTTOM BAR (mobile/tablet) -->
   <div class="botbar" id="botbar">
     <div class="total-row">
       <span class="total-lbl">Total a cobrar</span>
@@ -328,6 +370,28 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     </div>
     <button class="btn-cobrar" id="btn-cobrar" onclick="openSheet()" disabled>Cobrar</button>
   </div>
+
+  </div><!-- /left-panel -->
+
+  <!-- RIGHT PANEL (desktop only) -->
+  <div class="right-panel" id="right-panel">
+    <div class="right-panel-inner">
+      <div class="right-panel-title">📋 Pedido actual</div>
+      <div id="tipo-display" style="font-size:.82rem;color:var(--muted);margin-bottom:4px;">🥡 Para llevar</div>
+      <div class="oi-list" id="order-items-desk">
+        <div class="empty" style="padding:1rem 0;">Agrega productos 👈</div>
+      </div>
+    </div>
+    <div class="botbar" id="botbar-desk" style="border-top:1px solid var(--border);">
+      <div class="total-row">
+        <span class="total-lbl">Total a cobrar</span>
+        <span class="total-amt" id="total-display-desk">$0</span>
+      </div>
+      <button class="btn-cobrar" id="btn-cobrar-desk" onclick="openSheet()" disabled>Cobrar</button>
+    </div>
+  </div>
+
+  </div><!-- /desktop-body -->
 
 </div><!-- /app -->
 
@@ -416,6 +480,8 @@ function setTipo(t){
   document.getElementById('tipo-llevar').classList.toggle('active',t==='llevar');
   document.getElementById('tipo-dom').classList.toggle('active',t==='domicilio');
   document.getElementById('dom-section').style.display = t==='domicilio'?'flex':'none';
+  const td=document.getElementById('tipo-display');
+  if(td) td.textContent=t==='domicilio'?'🛵 Domicilio':'🥡 Para llevar';
 }
 
 /* ── PRODUCTS ── */
@@ -432,16 +498,25 @@ function getTotal(){ return Object.keys(qty).reduce((s,k)=>s+qty[k]*PRODUCTS[k].
 
 function renderOrder(){
   const total=getTotal();
-  document.getElementById('total-display').textContent='$'+total.toLocaleString('es-MX');
+  const fmt='$'+total.toLocaleString('es-MX');
+  document.getElementById('total-display').textContent=fmt;
   document.getElementById('btn-cobrar').disabled=total===0;
-  const el=document.getElementById('order-items');
-  if(total===0){ el.innerHTML='<div class="empty">Agrega productos arriba 👆</div>'; return; }
-  el.innerHTML=Object.keys(qty).filter(k=>qty[k]>0).map(k=>`
+  const dd=document.getElementById('total-display-desk');
+  const db=document.getElementById('btn-cobrar-desk');
+  const td=document.getElementById('tipo-display');
+  if(dd) dd.textContent=fmt;
+  if(db) db.disabled=total===0;
+  if(td) td.textContent=tipo==='domicilio'?'🛵 Domicilio':'🥡 Para llevar';
+  const itemsHTML=total===0?null:Object.keys(qty).filter(k=>qty[k]>0).map(k=>`
     <div class="oi">
       <div><div class="oin">${PRODUCTS[k].emoji} ${PRODUCTS[k].name}</div>
       <div class="oiq">x${qty[k]} × $${PRODUCTS[k].price}</div></div>
       <div class="oip">$${(qty[k]*PRODUCTS[k].price).toLocaleString('es-MX')}</div>
     </div>`).join('');
+  const el=document.getElementById('order-items');
+  if(el) el.innerHTML=total===0?'<div class="empty">Agrega productos arriba 👆</div>':itemsHTML;
+  const eld=document.getElementById('order-items-desk');
+  if(eld) eld.innerHTML=total===0?'<div class="empty" style="padding:1rem 0;">Agrega productos 👈</div>':itemsHTML;
 }
 
 /* ── SHEET ── */
