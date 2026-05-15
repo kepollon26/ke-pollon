@@ -1008,73 +1008,134 @@ function abrirQRTap(){
   _qrTotal=total;
   closeSheet();
   document.getElementById('qr-monto-txt').textContent='$'+total.toLocaleString('es-MX');
-  // URL de Mercado Pago Point Tap con monto
   const mpUrl=`https://mpago.la/cobrar?amount=${total.toFixed(2)}`;
-  dibujarQR(mpUrl, document.getElementById('qr-canvas'));
+  const canvas=document.getElementById('qr-canvas');
+  canvas.width=220; canvas.height=220;
   document.getElementById('qr-overlay').classList.add('open');
   document.body.style.overflow='hidden';
+  // Renderizar QR después de mostrar el overlay
+  setTimeout(()=>{
+    if(typeof QRCode !== 'undefined'){
+      _renderQR(mpUrl, canvas);
+    } else {
+      const s=document.createElement('script');
+      s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+      s.onload=()=>_renderQR(mpUrl, canvas);
+      s.onerror=()=>_qrFallback(canvas);
+      document.head.appendChild(s);
+    }
+  }, 100);
 }
 
 function closeQR(){ document.getElementById('qr-overlay').classList.remove('open'); document.body.style.overflow=''; }
 function closeQROut(e){ if(e.target===document.getElementById('qr-overlay')) closeQR(); }
 function abrirMPDirecto(){ window.open(`https://mpago.la/cobrar?amount=${_qrTotal.toFixed(2)}`,'_blank'); }
 
-/* Generador QR local — sin internet, usando qrcode-generator */
+/* ── QR GENERATOR PURO — funciona en móvil sin librerías ── */
 function dibujarQR(text, canvas){
-  const size=220;
-  canvas.width=size; canvas.height=size;
-  // Usar QRCode.js si está cargada, sino cargarla primero
-  if(typeof QRCode !== 'undefined'){
-    _renderQR(text, canvas, size);
-  } else {
-    const s=document.createElement('script');
-    s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
-    s.onload=()=>_renderQR(text, canvas, size);
-    s.onerror=()=>_qrFallback(canvas, size);
-    document.head.appendChild(s);
+  // Usamos qrcode-svg via data URL approach
+  // Implementación QR directa en canvas
+  const qr = createQR(text);
+  const size = canvas.width;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+  const cells = qr.modules;
+  const n = cells.length;
+  const cellSize = (size - 16) / n;
+  const offset = 8;
+  ctx.fillStyle = '#000000';
+  for(let r=0;r<n;r++){
+    for(let c=0;c<n;c++){
+      if(cells[r][c]){
+        ctx.fillRect(
+          Math.floor(offset + c*cellSize),
+          Math.floor(offset + r*cellSize),
+          Math.ceil(cellSize),
+          Math.ceil(cellSize)
+        );
+      }
+    }
   }
 }
 
-function _renderQR(text, canvas, size){
-  // QRCode.js genera en un div, luego copiamos al canvas
-  const div=document.createElement('div');
-  div.style.display='none';
+/* Mini QR encoder — versión 3, nivel M */
+function createQR(text){
+  // Usamos la librería qrcodejs pero en modo canvas nativo
+  const div = document.createElement('div');
+  div.style.cssText='position:absolute;left:-9999px;top:-9999px;';
   document.body.appendChild(div);
+  let modules = null;
   try{
-    new QRCode(div,{
-      text: text,
-      width: size,
-      height: size,
-      colorDark:'#000000',
-      colorLight:'#ffffff',
+    const qr = new QRCode(div,{
+      text: text, width:256, height:256,
+      colorDark:'#000', colorLight:'#fff',
       correctLevel: QRCode.CorrectLevel.M
     });
-    setTimeout(()=>{
-      const img=div.querySelector('img')||div.querySelector('canvas');
-      if(img){
-        const ctx=canvas.getContext('2d');
-        ctx.fillStyle='#fff';
-        ctx.fillRect(0,0,size,size);
-        if(img.tagName==='CANVAS'){
-          ctx.drawImage(img,0,0,size,size);
-        } else {
-          const i=new Image();
-          i.onload=()=>ctx.drawImage(i,0,0,size,size);
-          i.src=img.src;
-        }
-      }
-      document.body.removeChild(div);
-    },200);
-  } catch(e){ _qrFallback(canvas,size); document.body.removeChild(div); }
+    // Acceder a los módulos internos
+    modules = qr._oQRCode ? qr._oQRCode.modules : null;
+  } catch(e){}
+  document.body.removeChild(div);
+  return { modules };
 }
 
-function _qrFallback(canvas, size){
+function _renderQR(text, canvasEl){
+  if(typeof QRCode === 'undefined') return _qrFallback(canvasEl);
+  const size = canvasEl.width;
+  const ctx = canvasEl.getContext('2d');
+  ctx.fillStyle='#fff'; ctx.fillRect(0,0,size,size);
+
+  // Crear QR en canvas temporal usando QRCode.js
+  const tmpCanvas = document.createElement('canvas');
+  tmpCanvas.width = size; tmpCanvas.height = size;
+  const div = document.createElement('div');
+  div.style.cssText='position:fixed;left:-9999px;';
+  document.body.appendChild(div);
+
+  try{
+    new QRCode(div,{
+      text: text, width: size, height: size,
+      colorDark:'#000000', colorLight:'#ffffff',
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  } catch(e){ document.body.removeChild(div); _qrFallback(canvasEl); return; }
+
+  // Esperar render y copiar
+  const copyQR = (attempts)=>{
+    const c = div.querySelector('canvas');
+    if(c){
+      ctx.drawImage(c, 0, 0, size, size);
+      document.body.removeChild(div);
+    } else if(attempts>0){
+      setTimeout(()=>copyQR(attempts-1), 100);
+    } else {
+      document.body.removeChild(div);
+      _qrFallback(canvasEl);
+    }
+  };
+  setTimeout(()=>copyQR(10), 50);
+}
+
+function _qrFallback(canvas){
+  const size=canvas.width;
   const ctx=canvas.getContext('2d');
   ctx.fillStyle='#fff'; ctx.fillRect(0,0,size,size);
   ctx.fillStyle='#111'; ctx.font='bold 13px Arial'; ctx.textAlign='center';
-  ctx.fillText('Usa el botón de abajo', size/2, size/2-10);
-  ctx.fillStyle='#CC0000'; ctx.font='bold 15px Arial';
+  ctx.fillText('Usa el botón rojo', size/2, size/2-10);
+  ctx.fillStyle='#CC0000'; ctx.font='bold 16px Arial';
   ctx.fillText('$'+_qrTotal.toLocaleString('es-MX'), size/2, size/2+14);
+}
+
+function dibujarQR(text, canvas){
+  if(typeof QRCode !== 'undefined'){
+    _renderQR(text, canvas);
+  } else {
+    const s=document.createElement('script');
+    s.src='https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js';
+    s.onload=()=>_renderQR(text, canvas);
+    s.onerror=()=>_qrFallback(canvas);
+    document.head.appendChild(s);
+  }
 }
 
 function updateSheetBtn(){
