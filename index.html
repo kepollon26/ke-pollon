@@ -666,7 +666,7 @@ async function buildTicketImage(sale){
   const fecha=new Date(sale.ts).toLocaleString('es-MX',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
 
   // Calcular altura dinámica
-  const baseH = 420;
+  const baseH = 460;
   const itemH = sale.items.length * 34;
   const extraH = (sale.tipo==='domicilio' && (sale.nombre||sale.dir)) ? 48 : 0;
   const cambioH = (sale.recibido && sale.recibido > 0) ? 40 : 0;
