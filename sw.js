@@ -1,4 +1,4 @@
-const CACHE = 'ke-pollon-v1';
+const CACHE = 'ke-pollon-v2';
 const FILES = [
   './',
   './index.html',
