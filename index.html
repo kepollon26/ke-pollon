@@ -2,7 +2,7 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>KE-Pollón POS</title>
 
 <!-- PWA -->
@@ -76,6 +76,38 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   .desktop-body{display:contents;}
   .left-panel{display:contents;}
   .right-panel{display:none;}
+}
+
+/* ── LANDSCAPE TABLET/MÓVIL ── */
+@media(max-height:600px) and (orientation:landscape){
+  #app{flex-direction:column;}
+  .topbar{padding:6px 16px;}
+  .topbar img{height:34px;}
+  .tr strong{font-size:.75rem;}
+  .tr span{font-size:.65rem;}
+  .desktop-body{display:flex;flex:1;overflow:hidden;}
+  .left-panel{display:flex;flex-direction:column;flex:1;overflow:hidden;}
+  .right-panel{display:flex;width:300px;min-width:260px;flex-direction:column;background:var(--surface);}
+  .tabs .tab{font-size:.68rem;padding:8px 0;}
+  .tabs .tab-icon{font-size:.95rem;margin-bottom:1px;}
+  .view{padding:10px 14px;gap:9px;}
+  .pgrid{grid-template-columns:repeat(4,1fr);}
+  .pcard .pbanner{height:58px;font-size:2rem;}
+  .pbody{padding:6px 9px 8px;}
+  .pname{font-size:1rem;}
+  .pprice{font-size:1.2rem;}
+  .qbtn{width:24px;height:24px;font-size:.95rem;}
+  .qnum{font-size:1.1rem;}
+  .qty-row{margin-top:4px;gap:6px;}
+  .tipo-btn{padding:10px 8px 9px;}
+  .tipo-icon{font-size:1.4rem;margin-bottom:3px;}
+  .tipo-lbl{font-size:.78rem;}
+  .botbar{padding:10px 14px;}
+  .total-amt{font-size:1.6rem;}
+  .btn-cobrar{padding:11px;}
+  #venta-order-section{display:none;}
+  .right-panel-inner{padding:12px 14px;gap:9px;}
+  .right-panel-title{font-size:.68rem;margin-bottom:2px;}
 }
 
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px 8px;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;}
@@ -206,6 +238,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 #qr-canvas{border-radius:10px;border:6px solid #fff;box-shadow:0 4px 20px rgba(0,0,0,.4);}
 .btn-tap{width:100%;background:linear-gradient(135deg,#CC0000,#EE2222);color:#fff;border:none;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.08em;padding:13px;cursor:pointer;margin-top:4px;}
 .btn-tap:active{opacity:.85;}
+
+/* BILLETES */
+.billete-btn{background:var(--card2);border:1.5px solid var(--border2);color:var(--yellow);border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;padding:6px 12px;cursor:pointer;transition:background .15s;}
+.billete-btn:active{background:rgba(255,215,0,.2);}
 
 /* TICKET VIEWER */
 .tk-box{background:var(--surface);border-radius:12px;padding:14px;margin-bottom:14px;max-height:36vh;overflow-y:auto;}
@@ -428,6 +464,31 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     <div class="stitle" id="sheet-title">Confirmar cobro</div>
     <div class="ssub" id="sheet-sub">Orden #001</div>
     <div class="srows" id="sheet-rows"></div>
+
+    <!-- EFECTIVO: campo recibido + cambio -->
+    <div id="efectivo-wrap" style="background:var(--surface);border-radius:12px;padding:12px 14px;margin-bottom:12px;">
+      <div style="font-size:.72rem;font-weight:700;letter-spacing:.08em;color:var(--muted);text-transform:uppercase;margin-bottom:8px;">💵 Pago en efectivo</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;">
+        <label style="font-size:.82rem;color:var(--text2);white-space:nowrap;">Recibido $</label>
+        <input type="number" id="recibido-input" placeholder="0" min="0" step="1"
+          oninput="calcCambio()"
+          style="flex:1;background:var(--card);border:1.5px solid var(--border2);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:1.1rem;font-weight:700;padding:10px 13px;outline:none;text-align:right;">
+      </div>
+      <!-- Botones rápidos de billetes -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;" id="billetes-btns">
+        <button onclick="setBillete(50)"  class="billete-btn">$50</button>
+        <button onclick="setBillete(100)" class="billete-btn">$100</button>
+        <button onclick="setBillete(200)" class="billete-btn">$200</button>
+        <button onclick="setBillete(500)" class="billete-btn">$500</button>
+        <button onclick="setBillete(1000)"class="billete-btn">$1000</button>
+      </div>
+      <!-- Cambio -->
+      <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:10px;">
+        <span style="font-size:.85rem;color:var(--muted);font-weight:600;">CAMBIO</span>
+        <span id="cambio-display" style="font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--green);">$0</span>
+      </div>
+    </div>
+
     <div class="wa-wrap">
       <div class="wa-lbl">📱 Número WhatsApp del cliente</div>
       <div class="wa-row">
@@ -586,8 +647,13 @@ function openSheet(){
   }
   rows.push(`<div class="srow stotal"><span>TOTAL</span><span>$${getTotal().toLocaleString('es-MX')}</span></div>`);
   document.getElementById('sheet-rows').innerHTML=rows.join('');
+  // Reset efectivo
+  document.getElementById('recibido-input').value='';
+  document.getElementById('cambio-display').textContent='$0';
+  document.getElementById('cambio-display').style.color='var(--green)';
   document.getElementById('sheet-overlay').classList.add('open');
   document.body.style.overflow='hidden';
+  setTimeout(()=>document.getElementById('recibido-input').focus(),400);
 }
 function closeSheet(){ document.getElementById('sheet-overlay').classList.remove('open'); document.body.style.overflow=''; }
 function closeSheetOut(e){ if(e.target===document.getElementById('sheet-overlay')) closeSheet(); }
@@ -639,7 +705,7 @@ async function buildTicketImage(sale){
   ctx.font='9px Arial, sans-serif';
   ctx.textAlign='center';
   ctx.fillText('Av. 2 de Abril, Matamoros, 94243', W/2, y); y+=13;
-  ctx.fillText('Tel: 285 100 8866', W/2, y); y+=8;
+  ctx.fillText('Tel: 285 110 4668', W/2, y); y+=8;
 
   // Línea gruesa
   y+=6;
@@ -722,6 +788,18 @@ async function buildTicketImage(sale){
   ctx.fillText('$'+sale.total.toLocaleString('es-MX'), W-pad, y);
   y+=22;
 
+  // Recibido y cambio (solo efectivo con monto)
+  if(sale.recibido && sale.recibido > 0){
+    ctx.textAlign='left'; ctx.fillStyle='#555'; ctx.font='10px Arial, sans-serif';
+    ctx.fillText('Recibido:', pad, y);
+    ctx.textAlign='right'; ctx.fillText('$'+sale.recibido.toLocaleString('es-MX'), W-pad, y);
+    y+=16;
+    ctx.textAlign='left'; ctx.fillStyle='#27AE60'; ctx.font='bold 11px Arial, sans-serif';
+    ctx.fillText('Cambio:', pad, y);
+    ctx.textAlign='right'; ctx.fillText('$'+sale.cambio.toLocaleString('es-MX'), W-pad, y);
+    y+=14;
+  }
+
   // Línea punteada
   ctx.strokeStyle='#BBB'; ctx.lineWidth=1; ctx.setLineDash([4,4]);
   ctx.beginPath(); ctx.moveTo(pad,y); ctx.lineTo(W-pad,y); ctx.stroke();
@@ -801,6 +879,8 @@ function processPago(){
   const domTel=document.getElementById('dom-tel').value.trim();
   const telFinal=tipo==='domicilio'?(domTel||waNum):waNum;
 
+  const recibido=getRecibido();
+  const cambio=getCambio();
   const sale={
     num:'#'+String(orderN).padStart(3,'0'),
     ts:Date.now(),
@@ -809,6 +889,8 @@ function processPago(){
     dir:tipo==='domicilio'?dir:'',
     tel:telFinal,
     total:getTotal(),
+    recibido: recibido||0,
+    cambio: cambio||0,
     items:Object.keys(qty).filter(k=>qty[k]>0).map(k=>({...PRODUCTS[k],qty:qty[k]}))
   };
 
@@ -1004,6 +1086,27 @@ function showToast(msg){
   const t=document.getElementById('toast');
   t.textContent=msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),2500);
+}
+
+/* ── EFECTIVO / CAMBIO ── */
+function calcCambio(){
+  const total = getTotal();
+  const rec = parseFloat(document.getElementById('recibido-input').value)||0;
+  const cambio = rec >= total ? rec - total : 0;
+  const el = document.getElementById('cambio-display');
+  el.textContent = '$'+cambio.toLocaleString('es-MX');
+  el.style.color = rec > 0 && rec < total ? 'var(--red2)' : 'var(--green)';
+}
+
+function setBillete(val){
+  document.getElementById('recibido-input').value = val;
+  calcCambio();
+}
+
+function getRecibido(){ return parseFloat(document.getElementById('recibido-input').value)||0; }
+function getCambio(){
+  const total=getTotal(), rec=getRecibido();
+  return rec>=total ? rec-total : 0;
 }
 
 function closeTkOut(e){ if(e.target===document.getElementById('ticket-overlay')) closeTicket(); }
