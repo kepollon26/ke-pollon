@@ -465,9 +465,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
       <button onclick="setFiltro('hoy')"   id="f-hoy"   class="filtro-btn active">📅 Hoy</button>
       <button onclick="setFiltro('ayer')"  id="f-ayer"  class="filtro-btn">Ayer</button>
-      <button onclick="setFiltro('todo')"  id="f-todo"  class="filtro-btn">📊 Todo</button>
+      <button onclick="setFiltro('mes')"   id="f-mes"   class="filtro-btn">📆 Mes</button>
       <button onclick="abrirDatePicker()" id="f-fecha" class="filtro-btn">🗓 Fecha</button>
     </div>
+    <!-- Navegación mes -->
+    <div id="mes-nav" style="display:none;align-items:center;justify-content:space-between;background:var(--card);border-radius:12px;padding:10px 16px;">
+      <button onclick="cambiarMes(-1)" style="background:none;border:none;color:var(--yellow);font-size:1.4rem;cursor:pointer;padding:0 8px;">‹</button>
+      <span id="mes-label" style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--text);letter-spacing:.05em;"></span>
+      <button onclick="cambiarMes(1)"  style="background:none;border:none;color:var(--yellow);font-size:1.4rem;cursor:pointer;padding:0 8px;">›</button>
+    </div>
+
     <div id="date-picker-wrap" style="display:none;">
       <div id="fechas-disponibles" style="display:flex;flex-direction:column;gap:6px;"></div>
     </div>
@@ -529,14 +536,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
           oninput="calcCambio()"
           style="flex:1;background:var(--card);border:1.5px solid var(--border2);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:1.1rem;font-weight:700;padding:10px 13px;outline:none;text-align:right;">
       </div>
-      <!-- Botones rápidos de billetes -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;" id="billetes-btns">
-        <button onclick="setBillete(50)"  class="billete-btn">$50</button>
-        <button onclick="setBillete(100)" class="billete-btn">$100</button>
-        <button onclick="setBillete(200)" class="billete-btn">$200</button>
-        <button onclick="setBillete(500)" class="billete-btn">$500</button>
-        <button onclick="setBillete(1000)"class="billete-btn">$1000</button>
-      </div>
+      <!-- Botones rápidos de billetes (se generan dinámicamente) -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;" id="billetes-btns"></div>
       <!-- Cambio -->
       <div style="display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:10px;">
         <span style="font-size:.85rem;color:var(--muted);font-weight:600;">CAMBIO</span>
@@ -705,7 +706,8 @@ function openSheet(){
   }
   rows.push(`<div class="srow stotal"><span>TOTAL</span><span>$${getTotal().toLocaleString('es-MX')}</span></div>`);
   document.getElementById('sheet-rows').innerHTML=rows.join('');
-  // Reset efectivo
+  // Reset efectivo y generar billetes inteligentes
+  generarBilletes();
   document.getElementById('recibido-input').value='';
   document.getElementById('cambio-display').textContent='$0';
   document.getElementById('cambio-display').style.color='var(--green)';
@@ -1037,6 +1039,7 @@ function calcMediosEquiv(items){
 }
 
 let filtroActual = 'hoy';
+let mesActual = { y: new Date().getFullYear(), m: new Date().getMonth() }; // 0-indexed
 
 function getFechaStr(ts){
   const d=new Date(ts);
@@ -1057,10 +1060,33 @@ function setFiltro(f){
   document.querySelectorAll('.filtro-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('f-'+f).classList.add('active');
   document.getElementById('date-picker-wrap').style.display='none';
+  const mesNav=document.getElementById('mes-nav');
+  if(f==='mes'){
+    mesActual={y:new Date().getFullYear(), m:new Date().getMonth()};
+    mesNav.style.display='flex';
+    actualizarMesLabel();
+  } else {
+    mesNav.style.display='none';
+  }
   const lbl=document.getElementById('ventas-lbl');
   if(f==='hoy') lbl.textContent='Ventas de hoy';
   else if(f==='ayer') lbl.textContent='Ventas de ayer';
-  else lbl.textContent='Todas las ventas';
+  else if(f==='mes') lbl.textContent='Ventas del mes';
+  renderResumen();
+}
+
+function actualizarMesLabel(){
+  const d=new Date(mesActual.y, mesActual.m, 1);
+  const label=d.toLocaleDateString('es-MX',{month:'long',year:'numeric'});
+  document.getElementById('mes-label').textContent=label.charAt(0).toUpperCase()+label.slice(1);
+  document.getElementById('ventas-lbl').textContent='Ventas de '+label;
+}
+
+function cambiarMes(delta){
+  mesActual.m+=delta;
+  if(mesActual.m>11){ mesActual.m=0; mesActual.y++; }
+  if(mesActual.m<0){  mesActual.m=11; mesActual.y--; }
+  actualizarMesLabel();
   renderResumen();
 }
 
@@ -1121,7 +1147,12 @@ function setFiltroFecha(val){
 }
 
 function getSalesFiltradas(){
-  if(filtroActual==='todo') return sales;
+  if(filtroActual==='mes'){
+    return sales.filter(s=>{
+      const d=new Date(s.ts);
+      return d.getFullYear()===mesActual.y && d.getMonth()===mesActual.m;
+    });
+  }
   if(filtroActual.startsWith('fecha:')){
     const target=filtroActual.split(':')[1];
     return sales.filter(s=>getFechaStr(s.ts)===target);
@@ -1137,7 +1168,7 @@ function renderResumen(){
   const dom=sf.filter(v=>v.tipo==='domicilio').reduce((s,v)=>s+v.total,0);
   const cajaMedios=sf.reduce((s,v)=>s+calcMediosEquiv(v.items),0);
   document.getElementById('stats-grid').innerHTML=`
-    <div class="sc full"><div class="sv gold">$${total.toLocaleString('es-MX')}</div><div class="sn">${filtroActual==='todo'?'Total acumulado':'Total del día'}</div></div>
+    <div class="sc full"><div class="sv gold">$${total.toLocaleString('es-MX')}</div><div class="sn">${filtroActual==='mes'?'Total del mes':filtroActual==='todo'?'Total acumulado':'Total del día'}</div></div>
     <div class="sc"><div class="sv red">${sf.length}</div><div class="sn">Órdenes</div></div>
     <div class="sc"><div class="sv" style="color:var(--text)">${cajaMedios}</div><div class="sn">📦 Medios en caja</div></div>
     <div class="sc"><div class="sv green">$${llevar.toLocaleString('es-MX')}</div><div class="sn">🥡 Para llevar</div></div>
@@ -1255,6 +1286,21 @@ function showToast(msg){
 }
 
 /* ── EFECTIVO / CAMBIO ── */
+function generarBilletes(){
+  const total=getTotal();
+  const todos=[50,100,200,500,1000];
+  // Solo mostrar billetes mayores al total, más el primer billete igual
+  const disponibles=todos.filter(b=>b>total);
+  // Si hay un billete exacto o el total es redondo, incluir el más cercano
+  const exacto=todos.find(b=>b===total);
+  const final=exacto?[exacto,...disponibles]:disponibles;
+  const container=document.getElementById('billetes-btns');
+  if(!container) return;
+  container.innerHTML=final.map(b=>
+    `<button onclick="setBillete(${b})" class="billete-btn">$${b.toLocaleString('es-MX')}</button>`
+  ).join('');
+}
+
 function calcCambio(){
   const total = getTotal();
   const rec = parseFloat(document.getElementById('recibido-input').value)||0;
