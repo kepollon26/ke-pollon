@@ -1401,10 +1401,36 @@ function updateSheetBtn(){
 
 renderOrder();
 
-// Registrar Service Worker PWA
+// Registrar Service Worker PWA con auto-actualización
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js').catch(()=>{});
+  window.addEventListener('load', async ()=>{
+    try{
+      const reg = await navigator.serviceWorker.register('./sw.js');
+
+      // Revisar actualizaciones cada vez que se abre la app
+      reg.update();
+
+      // Cuando encuentra versión nueva, aplicarla inmediatamente
+      reg.addEventListener('updatefound', ()=>{
+        const nuevo = reg.installing;
+        nuevo.addEventListener('statechange', ()=>{
+          if(nuevo.state === 'installed' && navigator.serviceWorker.controller){
+            // Hay versión nueva lista — aplicar sin pedir permiso
+            nuevo.postMessage('skipWaiting');
+          }
+        });
+      });
+
+      // Cuando el SW nuevo toma control, recargar la página
+      let recargando = false;
+      navigator.serviceWorker.addEventListener('controllerchange', ()=>{
+        if(!recargando){
+          recargando = true;
+          window.location.reload();
+        }
+      });
+
+    } catch(e){ console.log('SW error:', e); }
   });
 }
 </script>
