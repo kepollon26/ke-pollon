@@ -1041,7 +1041,10 @@ let filtroActual = 'hoy';
 
 function getFechaStr(ts){
   const d=new Date(ts);
-  return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+  // Formato YYYY-MM-DD con ceros para coincidir con input type="date"
+  const m=String(d.getMonth()+1).padStart(2,'0');
+  const dia=String(d.getDate()).padStart(2,'0');
+  return d.getFullYear()+'-'+m+'-'+dia;
 }
 
 function getHoyStr(){ return getFechaStr(Date.now()); }
