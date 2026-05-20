@@ -398,6 +398,45 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
             </div>
           </div>
         </div>
+        <div class="pcard" id="pc-en" onclick="selProd('en')">
+          <div class="pbanner p2">🛵</div>
+          <div class="pbody">
+            <div class="pname">Envío</div>
+            <div class="psub">A domicilio</div>
+            <div class="pprice">$15</div>
+            <div class="qty-row">
+              <button class="qbtn" onclick="event.stopPropagation();changeQty('en',-1)">−</button>
+              <span class="qnum" id="q-en">0</span>
+              <button class="qbtn" onclick="event.stopPropagation();changeQty('en',1)">+</button>
+            </div>
+          </div>
+        </div>
+        <div class="pcard" id="pc-ar" onclick="selProd('ar')">
+          <div class="pbanner p3">🍚</div>
+          <div class="pbody">
+            <div class="pname">Arroz Extra</div>
+            <div class="psub">Porción</div>
+            <div class="pprice">$10</div>
+            <div class="qty-row">
+              <button class="qbtn" onclick="event.stopPropagation();changeQty('ar',-1)">−</button>
+              <span class="qnum" id="q-ar">0</span>
+              <button class="qbtn" onclick="event.stopPropagation();changeQty('ar',1)">+</button>
+            </div>
+          </div>
+        </div>
+        <div class="pcard" id="pc-sx" onclick="selProd('sx')">
+          <div class="pbanner p4">🫙</div>
+          <div class="pbody">
+            <div class="pname">Salsa Extra</div>
+            <div class="psub">Porción</div>
+            <div class="pprice">$10</div>
+            <div class="qty-row">
+              <button class="qbtn" onclick="event.stopPropagation();changeQty('sx',-1)">−</button>
+              <span class="qnum" id="q-sx">0</span>
+              <button class="qbtn" onclick="event.stopPropagation();changeQty('sx',1)">+</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -564,13 +603,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 
 <script>
 const PRODUCTS = {
-  pe:{ name:'Pollo Entero', price:185, emoji:'🐔' },
-  mp:{ name:'Medio Pollo',  price:100, emoji:'🍗' },
-  tk:{ name:'Tortilla 1kg', price:25,  emoji:'🫓' },
-  tm:{ name:'Tortilla ½kg', price:15,  emoji:'🫓' }
+  pe:{ name:'Pollo Entero',      price:185, emoji:'🐔' },
+  mp:{ name:'Medio Pollo',       price:100, emoji:'🍗' },
+  tk:{ name:'Tortilla 1kg',      price:25,  emoji:'🫓' },
+  tm:{ name:'Tortilla ½kg',      price:15,  emoji:'🫓' },
+  en:{ name:'Envío a domicilio', price:15,  emoji:'🛵' },
+  ar:{ name:'Arroz Extra',       price:10,  emoji:'🍚' },
+  sx:{ name:'Salsa Extra',       price:10,  emoji:'🫙' }
 };
 
-let qty     = { pe:0, mp:0, tk:0, tm:0 };
+let qty     = { pe:0, mp:0, tk:0, tm:0, en:0, ar:0, sx:0 };
 let tipo    = 'llevar';
 let sales   = JSON.parse(localStorage.getItem('kp_sales')||'[]');
 let pending = JSON.parse(localStorage.getItem('kp_pending')||'[]');
@@ -934,8 +976,8 @@ function processPago(){
 }
 
 function resetVenta(){
-  qty={pe:0,mp:0,tk:0,tm:0};
-  ['pe','mp','tk','tm'].forEach(k=>{
+  qty={pe:0,mp:0,tk:0,tm:0,en:0,ar:0,sx:0};
+  ['pe','mp','tk','tm','en','ar','sx'].forEach(k=>{
     document.getElementById('q-'+k).textContent='0';
     document.getElementById('pc-'+k).classList.remove('sel');
   });
