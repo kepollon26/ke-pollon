@@ -239,6 +239,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .btn-tap{width:100%;background:linear-gradient(135deg,#CC0000,#EE2222);color:#fff;border:none;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.08em;padding:13px;cursor:pointer;margin-top:4px;}
 .btn-tap:active{opacity:.85;}
 
+/* FILTRO DÍAS */
+.filtro-btn{background:var(--card);border:1.5px solid var(--border2);color:var(--muted);border-radius:20px;font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:600;padding:7px 14px;cursor:pointer;transition:all .2s;}
+.filtro-btn.active{background:var(--ydim);border-color:var(--yellow);color:var(--yellow);}
+
+/* SEPARADOR DE DÍA */
+.day-sep{text-align:center;font-size:.72rem;font-weight:700;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;padding:8px 0 4px;border-top:1px solid var(--border);margin-top:4px;}
+.day-sep:first-child{border-top:none;margin-top:0;}
+
 /* BILLETES */
 .billete-btn{background:var(--card2);border:1.5px solid var(--border2);color:var(--yellow);border-radius:8px;font-family:'Bebas Neue',sans-serif;font-size:.95rem;padding:6px 12px;cursor:pointer;transition:background .15s;}
 .billete-btn:active{background:rgba(255,215,0,.2);}
@@ -414,13 +422,22 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 
   <!-- ===== VISTA RESUMEN ===== -->
   <div class="view" id="view-resumen">
-    <div class="lbl" style="margin-bottom:8px;">Resumen del día</div>
+    <!-- Filtro de días -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <button onclick="setFiltro('hoy')"   id="f-hoy"   class="filtro-btn active">📅 Hoy</button>
+      <button onclick="setFiltro('ayer')"  id="f-ayer"  class="filtro-btn">Ayer</button>
+      <button onclick="setFiltro('todo')"  id="f-todo"  class="filtro-btn">📊 Todo</button>
+      <button onclick="abrirDatePicker()" id="f-fecha" class="filtro-btn">🗓 Fecha</button>
+    </div>
+    <div id="date-picker-wrap" style="display:none;">
+      <input type="date" id="fecha-input" onchange="setFiltroFecha(this.value)"
+        style="width:100%;background:var(--card);border:1.5px solid var(--yellow);border-radius:10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:.95rem;padding:10px 13px;outline:none;color-scheme:dark;">
+    </div>
     <div class="sg" id="stats-grid"></div>
     <div>
-      <div class="lbl" style="margin-bottom:8px;">Últimas ventas</div>
+      <div class="lbl" style="margin-bottom:8px;" id="ventas-lbl">Ventas de hoy</div>
       <div class="hl" id="history-list"></div>
     </div>
-
     <div style="height:10px;flex-shrink:0;"></div>
   </div>
 
@@ -978,27 +995,99 @@ function calcMediosEquiv(items){
   },0);
 }
 
+let filtroActual = 'hoy';
+
+function getFechaStr(ts){
+  const d=new Date(ts);
+  return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();
+}
+
+function getHoyStr(){ return getFechaStr(Date.now()); }
+function getAyerStr(){
+  const d=new Date(); d.setDate(d.getDate()-1);
+  return getFechaStr(d.getTime());
+}
+
+function setFiltro(f){
+  filtroActual=f;
+  document.querySelectorAll('.filtro-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('f-'+f).classList.add('active');
+  document.getElementById('date-picker-wrap').style.display='none';
+  const lbl=document.getElementById('ventas-lbl');
+  if(f==='hoy') lbl.textContent='Ventas de hoy';
+  else if(f==='ayer') lbl.textContent='Ventas de ayer';
+  else lbl.textContent='Todas las ventas';
+  renderResumen();
+}
+
+function abrirDatePicker(){
+  // Preseleccionar la fecha más reciente con ventas
+  const fechas=[...new Set(sales.map(s=>getFechaStr(s.ts)))].sort().reverse();
+  const input=document.getElementById('fecha-input');
+  if(fechas.length) input.value=fechas[0];
+  const wrap=document.getElementById('date-picker-wrap');
+  const visible=wrap.style.display!=='none';
+  wrap.style.display=visible?'none':'block';
+  if(!visible){
+    document.querySelectorAll('.filtro-btn').forEach(b=>b.classList.remove('active'));
+    document.getElementById('f-fecha').classList.add('active');
+    if(input.value) setFiltroFecha(input.value);
+  }
+}
+
+function setFiltroFecha(val){
+  if(!val) return;
+  filtroActual='fecha:'+val;
+  const fecha=new Date(val+'T12:00:00');
+  const label=fecha.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('ventas-lbl').textContent=
+    '📅 '+label.charAt(0).toUpperCase()+label.slice(1);
+  renderResumen();
+}
+
+function getSalesFiltradas(){
+  if(filtroActual==='todo') return sales;
+  if(filtroActual.startsWith('fecha:')){
+    const target=filtroActual.split(':')[1];
+    return sales.filter(s=>getFechaStr(s.ts)===target);
+  }
+  const target=filtroActual==='hoy'?getHoyStr():getAyerStr();
+  return sales.filter(s=>getFechaStr(s.ts)===target);
+}
+
 function renderResumen(){
-  const total=sales.reduce((s,v)=>s+v.total,0);
-  const llevar=sales.filter(v=>v.tipo==='llevar').reduce((s,v)=>s+v.total,0);
-  const dom=sales.filter(v=>v.tipo==='domicilio').reduce((s,v)=>s+v.total,0);
-  // Conteo caja: entero=2 medios, medio=1
-  const cajaMedios=sales.reduce((s,v)=>s+calcMediosEquiv(v.items),0);
+  const sf=getSalesFiltradas();
+  const total=sf.reduce((s,v)=>s+v.total,0);
+  const llevar=sf.filter(v=>v.tipo==='llevar').reduce((s,v)=>s+v.total,0);
+  const dom=sf.filter(v=>v.tipo==='domicilio').reduce((s,v)=>s+v.total,0);
+  const cajaMedios=sf.reduce((s,v)=>s+calcMediosEquiv(v.items),0);
   document.getElementById('stats-grid').innerHTML=`
-    <div class="sc full"><div class="sv gold">$${total.toLocaleString('es-MX')}</div><div class="sn">Total del día</div></div>
-    <div class="sc"><div class="sv red">${sales.length}</div><div class="sn">Órdenes</div></div>
+    <div class="sc full"><div class="sv gold">$${total.toLocaleString('es-MX')}</div><div class="sn">${filtroActual==='todo'?'Total acumulado':'Total del día'}</div></div>
+    <div class="sc"><div class="sv red">${sf.length}</div><div class="sn">Órdenes</div></div>
     <div class="sc"><div class="sv" style="color:var(--text)">${cajaMedios}</div><div class="sn">📦 Medios en caja</div></div>
     <div class="sc"><div class="sv green">$${llevar.toLocaleString('es-MX')}</div><div class="sn">🥡 Para llevar</div></div>
     <div class="sc"><div class="sv" style="color:var(--green)">$${dom.toLocaleString('es-MX')}</div><div class="sn">🛵 Domicilios</div></div>
   `;
   const hl=document.getElementById('history-list');
-  if(!sales.length){ hl.innerHTML='<div class="empty">Sin ventas aún</div>'; return; }
-  hl.innerHTML=[...sales].reverse().map((s,ri)=>{
-    const realIdx=sales.length-1-ri;
-    const hora=new Date(s.ts).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
+  if(!sf.length){ hl.innerHTML='<div class="empty">Sin ventas en este período</div>'; return; }
+
+  // Agrupar por día si es "todo"
+  let html='';
+  let lastDay='';
+  [...sf].reverse().forEach((s)=>{
+    const realIdx=sales.indexOf(s);
+    const diaStr=getFechaStr(s.ts);
+    const fecha=new Date(s.ts);
+    const diaLabel=fecha.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long'});
+    // Separador de día en vista "todo"
+    if(filtroActual==='todo' && diaStr!==lastDay){
+      html+=`<div class="day-sep">📅 ${diaLabel.charAt(0).toUpperCase()+diaLabel.slice(1)}</div>`;
+      lastDay=diaStr;
+    }
+    const hora=fecha.toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'});
     const prods=s.items.map(i=>`${i.emoji} ${i.name} x${i.qty}`).join(', ');
     const badge=s.tipo==='domicilio'?'<span class="badge b-dom">domicilio</span>':'<span class="badge b-llevar">llevar</span>';
-    return `<div class="hi" style="flex-direction:column;gap:8px;">
+    html+=`<div class="hi" style="flex-direction:column;gap:8px;">
       <div style="display:flex;align-items:flex-start;gap:10px;">
         <div class="hnum">${s.num}</div>
         <div class="hbody">
@@ -1019,7 +1108,8 @@ function renderResumen(){
         }
       </div>
     </div>`;
-  }).join('');
+  });
+  hl.innerHTML=html;
 }
 
 async function verTicket(idx){
