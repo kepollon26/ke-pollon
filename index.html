@@ -1959,38 +1959,31 @@ async function abrirGestionUsuarios(){
   setTimeout(async ()=>{
     const snap = await db.ref('usuarios').get();
     const data = snap.val() || {};
-    const todos = [
-      {username:'admin', role:'admin', displayName:'Administrador'},
-      ...Object.entries(data).map(([k,v])=>({username:k,...v}))
-    ];
+    const todos = Object.entries(data).map(([k,v])=>({username:k,...v}));
 
-    // Crear panel de usuarios como sheet
-    let usersHTML = todos.map(u=>`
+    const usersHTML = todos.map(u=>`
       <div class="usuarios-item">
         <div>
-          <div style="font-weight:600;font-size:.92rem;">${u.displayName} ${u.role==='admin'?'<span style="background:var(--red);color:#fff;font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:3px;">ADMIN</span>':''}</div>
+          <div style="font-weight:600;font-size:.92rem;">${u.displayName||u.username} ${u.role==='admin'?'<span style="background:var(--red);color:#fff;font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:3px;">ADMIN</span>':''}</div>
           <div style="font-size:.72rem;color:var(--muted);">@${u.username}</div>
         </div>
         <div style="display:flex;gap:6px;">
           <button onclick="cambiarPinUsuario('${u.username}')" style="background:var(--ydim);border:1px solid rgba(255,215,0,.3);color:var(--yellow);border-radius:8px;font-size:.75rem;font-weight:700;padding:5px 10px;cursor:pointer;">🔑 PIN</button>
-          ${u.username!=='admin'?`<button onclick="eliminarUsuario('${u.username()}')" style="background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.3);color:#E74C3C;border-radius:8px;font-size:.75rem;font-weight:700;padding:5px 10px;cursor:pointer;">🗑</button>`:''}
+          ${u.username!=='admin'?`<button onclick="eliminarUsuario('${u.username}')" style="background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.3);color:#E74C3C;border-radius:8px;font-size:.75rem;font-weight:700;padding:5px 10px;cursor:pointer;">🗑</button>`:''}
         </div>
       </div>`).join('');
 
-    // Fix eliminar button
-    usersHTML = usersHTML.replace(/eliminarUsuario\('([^']+)\(\)'\)/g, "eliminarUsuario('$1')");
-
     const cont = document.getElementById('ajustes-contenido');
     const sub  = document.getElementById('ajustes-sub');
-    sub.textContent = 'Usuarios registrados';
+    sub.textContent = 'Usuarios registrados ('+todos.length+')';
     cont.innerHTML = `
-      <div style="display:flex;flex-direction:column;gap:8px;">${usersHTML}</div>
+      <div style="display:flex;flex-direction:column;gap:8px;">${usersHTML||'<div style="color:var(--muted);font-size:.85rem;text-align:center;padding:12px;">Sin usuarios</div>'}</div>
       <button onclick="abrirNuevoUsuario()" style="width:100%;background:linear-gradient(135deg,var(--red),var(--red2));color:#fff;border:none;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.08em;padding:13px;cursor:pointer;margin-top:4px;">+ Agregar usuario</button>
       <button onclick="abrirAjustes()" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;padding:11px;cursor:pointer;">‹ Volver a ajustes</button>
     `;
     document.getElementById('ajustes-overlay').classList.add('open');
     document.body.style.overflow = 'hidden';
-  }, 350);
+  }, 300);
 }
 
 
@@ -2186,8 +2179,13 @@ function abrirNuevoUsuario(){
   const pin=prompt('PIN de 6 dígitos:');
   if(!pin||pin.length!==6||isNaN(pin)){ alert('El PIN debe ser exactamente 6 números'); return; }
   db.ref('usuarios/'+usuario.toLowerCase()).set({
-    displayName:nombre, role:'user', pinHash:hashPin(pin)
-  }).then(()=>{ showToast('Usuario creado ✅'); cargarUsuarios(); cargarListaLogin(); });
+    displayName:nombre.trim(), role:'user', pinHash:hashPin(pin)
+  }).then(()=>{
+    showToast('Usuario creado ✅');
+    cargarListaLogin();
+    // Refrescar el panel de usuarios que está abierto
+    abrirGestionUsuarios();
+  }).catch(e=>{ alert('Error al guardar: '+e.message); });
 }
 
 function cambiarMiPin(){
