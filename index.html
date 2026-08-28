@@ -305,6 +305,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .admin-badge{background:var(--red);color:#fff;font-size:.65rem;font-weight:800;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:.08em;}
 
 /* ── AJUSTES ── */
+.login-user-item{display:flex;align-items:center;gap:12px;background:var(--surface);border:1.5px solid var(--border2);border-radius:12px;padding:13px 16px;cursor:pointer;transition:border-color .2s,background .2s;width:100%;}
+.login-user-item:active{border-color:var(--yellow);background:var(--ydim);}
+.login-user-avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.3rem;flex-shrink:0;}
+.login-user-avatar.admin{background:linear-gradient(135deg,#8B0000,#CC0000);}
+.login-user-avatar.user{background:linear-gradient(135deg,#1A3A1A,#2E6B2E);}
+.login-user-info-name{font-weight:700;font-size:.95rem;color:var(--text);}
+.login-user-info-sub{font-size:.72rem;color:var(--muted);}
+
 .ajustes-btn{background:none;border:none;font-size:1.4rem;cursor:pointer;padding:4px 6px;border-radius:8px;transition:background .2s;}
 .ajustes-btn:active{background:rgba(255,255,255,.1);}
 .ajustes-sheet{width:100%;max-width:430px;margin:0 auto;background:var(--card2);border-radius:20px 20px 0 0;padding:22px 20px 40px;transform:translateY(100%);transition:transform .3s cubic-bezier(.22,1,.36,1);border-top:1px solid var(--border2);max-height:85vh;overflow-y:auto;}
@@ -325,17 +333,33 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   <div class="login-title">KE-Pollón POS</div>
   <div class="login-sub">Inicia sesión para continuar</div>
   <div class="login-box">
-    <div class="login-field">
-      <label>Usuario</label>
-      <input type="text" id="login-user" placeholder="Nombre de usuario" autocomplete="username">
+    <!-- Paso 1: Seleccionar usuario -->
+    <div id="login-step1">
+      <div class="login-field" style="margin-bottom:4px;">
+        <label>¿Quién eres?</label>
+      </div>
+      <div id="login-user-list" style="display:flex;flex-direction:column;gap:8px;">
+        <div style="text-align:center;color:var(--muted);font-size:.82rem;padding:12px;">Cargando usuarios…</div>
+      </div>
     </div>
-    <div class="login-field">
-      <label>PIN (6 dígitos)</label>
-      <input type="password" id="login-pin" placeholder="••••••" maxlength="6" inputmode="numeric" autocomplete="current-password">
+    <!-- Paso 2: PIN -->
+    <div id="login-step2" style="display:none;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+        <button onclick="volverUsuarios()" style="background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;">‹</button>
+        <div>
+          <div style="font-weight:700;font-size:.95rem;" id="login-selected-name">--</div>
+          <div style="font-size:.72rem;color:var(--muted);">Ingresa tu PIN</div>
+        </div>
+      </div>
+      <div class="login-field">
+        <label>PIN (6 dígitos)</label>
+        <input type="password" id="login-pin" placeholder="••••••" maxlength="6" inputmode="numeric" autocomplete="current-password">
+      </div>
+      <div class="login-error" id="login-error">PIN incorrecto</div>
+      <button class="btn-login" onclick="intentarLogin()">Entrar</button>
     </div>
-    <div class="login-error" id="login-error">Usuario o PIN incorrecto</div>
-    <button class="btn-login" onclick="intentarLogin()">Entrar</button>
   </div>
+  <input type="hidden" id="login-user">
 </div>
 
 <div id="app">
@@ -420,7 +444,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
           <div class="pbody">
             <div class="pname">Pollo Entero</div>
             <div class="psub">1 pieza completa</div>
-            <div class="pprice">$185</div>
+            <div class="pprice">$190</div>
             <div class="qty-row">
               <button class="qbtn" onclick="event.stopPropagation();changeQty('pe',-1)">−</button>
               <span class="qnum" id="q-pe">0</span>
@@ -1719,8 +1743,24 @@ function abrirAjustes(){
 
   let items = '';
 
-  // Cambiar mi PIN — disponible para todos
-  items += `
+  // Solo admin ve opciones de administración
+  if(currentUser && currentUser.role === 'admin'){
+    items += `
+    <div style="font-size:.7rem;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;padding-left:4px;">Administración</div>
+    <div class="ajuste-item" onclick="abrirGestionProductos()">
+      <div style="display:flex;align-items:center;">
+        <span class="ajuste-icon">🛍️</span>
+        <div><div class="ajuste-label">Productos y precios</div><div class="ajuste-sub">Agregar, editar o quitar productos</div></div>
+      </div>
+      <span class="ajuste-arrow">›</span>
+    </div>
+    <div class="ajuste-item" onclick="abrirGestionUsuarios()">
+      <div style="display:flex;align-items:center;">
+        <span class="ajuste-icon">👥</span>
+        <div><div class="ajuste-label">Usuarios</div><div class="ajuste-sub">Agregar, editar o eliminar usuarios</div></div>
+      </div>
+      <span class="ajuste-arrow">›</span>
+    </div>
     <div class="ajuste-item" onclick="cambiarMiPin()">
       <div style="display:flex;align-items:center;">
         <span class="ajuste-icon">🔑</span>
@@ -1728,21 +1768,9 @@ function abrirAjustes(){
       </div>
       <span class="ajuste-arrow">›</span>
     </div>`;
-
-  // Solo admin
-  if(currentUser.role === 'admin'){
-    items += `
-    <div style="font-size:.7rem;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-top:8px;padding-left:4px;">Administración</div>
-    <div class="ajuste-item" onclick="abrirGestionUsuarios()">
-      <div style="display:flex;align-items:center;">
-        <span class="ajuste-icon">👥</span>
-        <div><div class="ajuste-label">Gestionar usuarios</div><div class="ajuste-sub">Agregar, editar o eliminar usuarios</div></div>
-      </div>
-      <span class="ajuste-arrow">›</span>
-    </div>`;
   }
 
-  // Cerrar sesión
+  // Cerrar sesión — todos
   items += `
     <div style="font-size:.7rem;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-top:8px;padding-left:4px;">Cuenta</div>
     <div class="ajuste-item" onclick="cerrarSesionDesdeAjustes()">
@@ -1780,6 +1808,150 @@ function cerrarSesionDesdeAjustes(){
     const v=document.getElementById('view-admin'); if(v) v.remove();
   }, 300);
 }
+
+async function abrirGestionProductos(){
+  cerrarAjustes();
+  setTimeout(()=>{
+    // Construir lista de productos actuales
+    const renderProductos = ()=>{
+      const lista = Object.entries(PRODUCTS).map(([k,p])=>`
+        <div style="background:var(--card);border-radius:10px;padding:11px 14px;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span style="font-size:1.4rem;">${p.emoji}</span>
+            <div>
+              <div style="font-weight:600;font-size:.9rem;">${p.name}</div>
+              <div style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--yellow);">$${p.price}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button onclick="editarProducto('${k}')" style="background:var(--ydim);border:1px solid rgba(255,215,0,.3);color:var(--yellow);border-radius:8px;font-size:.75rem;font-weight:700;padding:5px 10px;cursor:pointer;">✏️ Editar</button>
+            <button onclick="eliminarProducto('${k}')" style="background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.3);color:#E74C3C;border-radius:8px;font-size:.75rem;font-weight:700;padding:5px 10px;cursor:pointer;">🗑</button>
+          </div>
+        </div>`).join('');
+      const cont=document.getElementById('ajustes-contenido');
+      if(cont) cont.querySelector('#prod-lista').innerHTML=lista;
+    };
+
+    const cont=document.getElementById('ajustes-contenido');
+    const sub=document.getElementById('ajustes-sub');
+    sub.textContent='Productos del menú';
+    cont.innerHTML=`
+      <div id="prod-lista" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <button onclick="agregarProducto()" style="width:100%;background:linear-gradient(135deg,var(--red),var(--red2));color:#fff;border:none;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.08em;padding:13px;cursor:pointer;margin-top:4px;">+ Agregar producto</button>
+      <button onclick="abrirAjustes()" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;padding:11px;cursor:pointer;">‹ Volver</button>
+    `;
+    renderProductos();
+    document.getElementById('ajustes-overlay').classList.add('open');
+    document.body.style.overflow='hidden';
+  }, 350);
+}
+
+function editarProducto(key){
+  const p=PRODUCTS[key];
+  if(!p) return;
+  const nombre=prompt('Nombre del producto:', p.name);
+  if(nombre===null) return;
+  const precioStr=prompt('Precio:', p.price);
+  if(precioStr===null) return;
+  const precio=parseFloat(precioStr);
+  if(isNaN(precio)||precio<=0){ alert('Precio inválido'); return; }
+  const emoji=prompt('Emoji:', p.emoji);
+  if(emoji===null) return;
+  PRODUCTS[key]={...p, name:nombre.trim(), price:precio, emoji:emoji.trim()||p.emoji};
+  guardarProductosFirebase();
+  // Actualizar tarjeta en pantalla
+  const nameEl=document.getElementById('pc-'+key)?.querySelector('.pname');
+  const priceEl=document.getElementById('pc-'+key)?.querySelector('.pprice');
+  if(nameEl) nameEl.textContent=PRODUCTS[key].name;
+  if(priceEl) priceEl.textContent='$'+PRODUCTS[key].price;
+  showToast('Producto actualizado ✅');
+  abrirGestionProductos();
+}
+
+function agregarProducto(){
+  const nombre=prompt('Nombre del producto (ej: Ensalada):');
+  if(!nombre) return;
+  const precioStr=prompt('Precio:');
+  if(!precioStr) return;
+  const precio=parseFloat(precioStr);
+  if(isNaN(precio)||precio<=0){ alert('Precio inválido'); return; }
+  const emoji=prompt('Emoji (ej: 🥗):') || '🍽️';
+  // Generar key única
+  const key='p'+Date.now().toString(36);
+  PRODUCTS[key]={name:nombre.trim(), price:precio, emoji:emoji.trim()};
+  qty[key]=0;
+  guardarProductosFirebase();
+  agregarTarjetaProducto(key);
+  showToast('Producto agregado ✅');
+  abrirGestionProductos();
+}
+
+function eliminarProducto(key){
+  if(!confirm('¿Eliminar "'+PRODUCTS[key].name+'"?')) return;
+  delete PRODUCTS[key];
+  delete qty[key];
+  // Quitar tarjeta del DOM
+  const card=document.getElementById('pc-'+key);
+  if(card) card.remove();
+  guardarProductosFirebase();
+  renderOrder();
+  showToast('Producto eliminado');
+  abrirGestionProductos();
+}
+
+function agregarTarjetaProducto(key){
+  const p=PRODUCTS[key];
+  const grid=document.querySelector('.pgrid');
+  if(!grid) return;
+  const card=document.createElement('div');
+  card.className='pcard'; card.id='pc-'+key;
+  card.onclick=()=>selProd(key);
+  card.innerHTML=`
+    <div class="pbanner p3">${p.emoji}</div>
+    <div class="pbody">
+      <div class="pname">${p.name}</div>
+      <div class="psub"></div>
+      <div class="pprice">$${p.price}</div>
+      <div class="qty-row">
+        <button class="qbtn" onclick="event.stopPropagation();changeQty('${key}',-1)">−</button>
+        <span class="qnum" id="q-${key}">0</span>
+        <button class="qbtn" onclick="event.stopPropagation();changeQty('${key}',1)">+</button>
+      </div>
+    </div>`;
+  grid.appendChild(card);
+}
+
+function guardarProductosFirebase(){
+  // Guardar productos dinámicos en Firebase (solo los que no son base)
+  const dinamicos={};
+  const BASE_KEYS=['pe','mp','tk','tm','en','ar','sx','sl','a1','am','co','an'];
+  Object.entries(PRODUCTS).forEach(([k,v])=>{
+    if(!BASE_KEYS.includes(k)) dinamicos[k]=v;
+    else dinamicos[k]={...v}; // guardar también los base por si cambia precio
+  });
+  db.ref('productos').set(dinamicos).catch(()=>{});
+}
+
+// Cargar productos de Firebase al iniciar (precios actualizados y productos extra)
+db.ref('productos').once('value').then(snap=>{
+  const data=snap.val();
+  if(data){
+    Object.entries(data).forEach(([k,v])=>{
+      PRODUCTS[k]=v;
+      if(qty[k]===undefined) qty[k]=0;
+      // Actualizar tarjetas existentes o crear nuevas
+      const card=document.getElementById('pc-'+k);
+      if(card){
+        const nameEl=card.querySelector('.pname');
+        const priceEl=card.querySelector('.pprice');
+        if(nameEl) nameEl.textContent=v.name;
+        if(priceEl) priceEl.textContent='$'+v.price;
+      } else {
+        agregarTarjetaProducto(k);
+      }
+    });
+  }
+}).catch(()=>{});
 
 async function abrirGestionUsuarios(){
   cerrarAjustes();
@@ -1840,13 +2012,19 @@ async function intentarLogin(){
     let userData=null;
     const snap=await db.ref('usuarios/'+username).get();
     userData=snap.val();
-    // Admin por defecto si no existe en Firebase
+    // Admin por defecto si no existe en Firebase — guardarlo
     if(!userData && username==='admin'){
       userData={displayName:'Administrador',role:'admin',pinHash:hashPin('000000')};
+      // Guardar admin en Firebase para que persista
+      db.ref('usuarios/admin').set(userData).catch(()=>{});
     }
     if(!userData){ errEl.textContent='Usuario no encontrado'; errEl.style.display='block'; return; }
     if(userData.pinHash!==hashPin(pin)){ errEl.textContent='PIN incorrecto'; errEl.style.display='block'; return; }
-    currentUser={username,role:userData.role,displayName:userData.displayName};
+    currentUser={
+      username,
+      role: userData.role || 'user',
+      displayName: userData.displayName || username
+    };
     localStorage.setItem('kp_session',JSON.stringify(currentUser));
     mostrarApp();
   } catch(e){
@@ -1856,9 +2034,70 @@ async function intentarLogin(){
   }
 }
 
+// Cargar lista de usuarios al iniciar
+async function cargarListaLogin(){
+  const lista = document.getElementById('login-user-list');
+  if(!lista) return;
+  try{
+    const snap = await db.ref('usuarios').get();
+    const data = snap.val() || {};
+    const usuarios = [
+      { username:'admin', displayName:'Administrador', role:'admin' },
+      ...Object.entries(data).map(([k,v])=>({username:k,...v}))
+    ];
+    lista.innerHTML = usuarios.map(u=>`
+      <button class="login-user-item" onclick="seleccionarUsuario('${u.username}','${u.displayName}','${u.role}')">
+        <div class="login-user-avatar ${u.role}">${u.role==='admin'?'👑':'👤'}</div>
+        <div>
+          <div class="login-user-info-name">${u.displayName}</div>
+          <div class="login-user-info-sub">@${u.username}</div>
+        </div>
+      </button>`).join('');
+  } catch(e){
+    // Sin internet — mostrar admin y usuarios guardados localmente
+    lista.innerHTML = `
+      <button class="login-user-item" onclick="seleccionarUsuario('admin','Administrador','admin')">
+        <div class="login-user-avatar admin">👑</div>
+        <div>
+          <div class="login-user-info-name">Administrador</div>
+          <div class="login-user-info-sub">@admin · sin conexión</div>
+        </div>
+      </button>`;
+  }
+}
+
+function seleccionarUsuario(username, displayName, role){
+  document.getElementById('login-user').value = username;
+  document.getElementById('login-selected-name').textContent = displayName;
+  document.getElementById('login-step1').style.display = 'none';
+  document.getElementById('login-step2').style.display = 'block';
+  document.getElementById('login-pin').value = '';
+  document.getElementById('login-error').style.display = 'none';
+  setTimeout(()=>document.getElementById('login-pin').focus(), 300);
+}
+
+function volverUsuarios(){
+  document.getElementById('login-step1').style.display = 'block';
+  document.getElementById('login-step2').style.display = 'none';
+  document.getElementById('login-pin').value = '';
+}
+
 // Enter key en PIN
 document.getElementById('login-pin').addEventListener('keydown',e=>{ if(e.key==='Enter') intentarLogin(); });
-document.getElementById('login-user').addEventListener('keydown',e=>{ if(e.key==='Enter') document.getElementById('login-pin').focus(); });
+
+// Inicializar admin en Firebase si no existe
+db.ref('usuarios/admin').once('value').then(snap=>{
+  if(!snap.val()){
+    db.ref('usuarios/admin').set({
+      displayName:'Administrador',
+      role:'admin',
+      pinHash: (function(pin){ let h=0; for(let i=0;i<pin.length;i++){ h=((h<<5)-h)+pin.charCodeAt(i); h|=0; } return Math.abs(h).toString(36); })('000000')
+    });
+  }
+}).catch(()=>{});
+
+// Cargar lista al iniciar
+cargarListaLogin();
 
 function mostrarApp(){
   document.getElementById('login-screen').style.display='none';
@@ -1940,7 +2179,7 @@ function abrirNuevoUsuario(){
   if(!pin||pin.length!==6||isNaN(pin)){ alert('El PIN debe ser exactamente 6 números'); return; }
   db.ref('usuarios/'+usuario.toLowerCase()).set({
     displayName:nombre, role:'user', pinHash:hashPin(pin)
-  }).then(()=>{ showToast('Usuario creado ✅'); cargarUsuarios(); });
+  }).then(()=>{ showToast('Usuario creado ✅'); cargarUsuarios(); cargarListaLogin(); });
 }
 
 function cambiarMiPin(){
@@ -1987,7 +2226,7 @@ async function eliminarUsuario(username){
   if(!confirm('¿Eliminar usuario @'+username+'?')) return;
   await db.ref('usuarios/'+username).remove();
   showToast('Usuario eliminado');
-  cargarUsuarios();
+  cargarUsuarios(); cargarListaLogin();
 }
 
 // Verificar sesión guardada al cargar
