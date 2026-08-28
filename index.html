@@ -1744,7 +1744,8 @@ function abrirAjustes(){
   let items = '';
 
   // Solo admin ve opciones de administración
-  if(currentUser && currentUser.role === 'admin'){
+  const esAdmin = currentUser && currentUser.role === 'admin';
+  if(esAdmin){
     items += `
     <div style="font-size:.7rem;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;padding-left:4px;">Administración</div>
     <div class="ajuste-item" onclick="abrirGestionProductos()">
@@ -2013,11 +2014,8 @@ async function intentarLogin(){
     const snap=await db.ref('usuarios/'+username).get();
     userData=snap.val();
     // Admin por defecto si no existe en Firebase — guardarlo
-    if(!userData && username==='admin'){
-      userData={displayName:'Administrador',role:'admin',pinHash:hashPin('000000')};
-      // Guardar admin en Firebase para que persista
-      db.ref('usuarios/admin').set(userData).catch(()=>{});
-    }
+    // Si no existe en Firebase, error
+    if(!userData){ errEl.textContent='Usuario no encontrado'; errEl.style.display='block'; return; }
     if(!userData){ errEl.textContent='Usuario no encontrado'; errEl.style.display='block'; return; }
     if(userData.pinHash!==hashPin(pin)){ errEl.textContent='PIN incorrecto'; errEl.style.display='block'; return; }
     currentUser={
@@ -2041,20 +2039,23 @@ async function cargarListaLogin(){
   try{
     const snap = await db.ref('usuarios').get();
     const data = snap.val() || {};
-    const usuarios = [
-      { username:'admin', displayName:'Administrador', role:'admin' },
-      ...Object.entries(data).map(([k,v])=>({username:k,...v}))
-    ];
+    // Leer TODOS los usuarios de Firebase (incluyendo admin)
+    const usuarios = Object.entries(data).map(([k,v])=>({username:k,...v}));
+    if(!usuarios.length){
+      lista.innerHTML='<div style="text-align:center;color:var(--muted);font-size:.82rem;padding:12px;">Sin conexión — intenta de nuevo</div>';
+      return;
+    }
+    // Ordenar: admin primero, luego resto
+    usuarios.sort((a,b)=> a.role==='admin'?-1:b.role==='admin'?1:0);
     lista.innerHTML = usuarios.map(u=>`
-      <button class="login-user-item" onclick="seleccionarUsuario('${u.username}','${u.displayName}','${u.role}')">
-        <div class="login-user-avatar ${u.role}">${u.role==='admin'?'👑':'👤'}</div>
+      <button class="login-user-item" onclick="seleccionarUsuario('${u.username}','${u.displayName||u.username}','${u.role||'user'}')">
+        <div class="login-user-avatar ${u.role==='admin'?'admin':'user'}">${u.role==='admin'?'👑':'👤'}</div>
         <div>
-          <div class="login-user-info-name">${u.displayName}</div>
+          <div class="login-user-info-name">${u.displayName||u.username}</div>
           <div class="login-user-info-sub">@${u.username}</div>
         </div>
       </button>`).join('');
   } catch(e){
-    // Sin internet — mostrar admin y usuarios guardados localmente
     lista.innerHTML = `
       <button class="login-user-item" onclick="seleccionarUsuario('admin','Administrador','admin')">
         <div class="login-user-avatar admin">👑</div>
@@ -2085,14 +2086,21 @@ function volverUsuarios(){
 // Enter key en PIN
 document.getElementById('login-pin').addEventListener('keydown',e=>{ if(e.key==='Enter') intentarLogin(); });
 
-// Inicializar admin en Firebase si no existe
+// Verificar admin en Firebase — solo agregar campos faltantes
 db.ref('usuarios/admin').once('value').then(snap=>{
-  if(!snap.val()){
-    db.ref('usuarios/admin').set({
-      displayName:'Administrador',
-      role:'admin',
-      pinHash: (function(pin){ let h=0; for(let i=0;i<pin.length;i++){ h=((h<<5)-h)+pin.charCodeAt(i); h|=0; } return Math.abs(h).toString(36); })('000000')
-    });
+  const data = snap.val();
+  const updates = {};
+  if(!data){ 
+    // No existe — crear completo
+    updates.displayName='Administrador';
+    updates.role='admin';
+    updates.pinHash=(function(pin){ let h=0; for(let i=0;i<pin.length;i++){ h=((h<<5)-h)+pin.charCodeAt(i); h|=0; } return Math.abs(h).toString(36); })('000000');
+    db.ref('usuarios/admin').set(updates).catch(()=>{});
+  } else {
+    // Existe — solo agregar lo que falta
+    if(!data.displayName) updates.displayName='Administrador';
+    if(!data.role) updates.role='admin';
+    if(Object.keys(updates).length) db.ref('usuarios/admin').update(updates).catch(()=>{});
   }
 }).catch(()=>{});
 
