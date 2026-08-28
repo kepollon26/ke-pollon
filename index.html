@@ -1046,9 +1046,14 @@ async function buildTicketImage(sale){
   ctx.font='10px Arial, sans-serif';
   ctx.fillText(tipoBadge, W-pad, y); y+=16;
 
-  // Fecha
+  // Fecha y vendedor
   ctx.textAlign='left'; ctx.fillStyle='#999'; ctx.font='9px Arial, sans-serif';
-  ctx.fillText(fecha, pad, y); y+=14;
+  ctx.fillText(fecha, pad, y);
+  if(sale.vendedorNombre){
+    ctx.textAlign='right';
+    ctx.fillText('🧑‍💼 '+sale.vendedorNombre, W-pad, y);
+  }
+  y+=14;
 
   if(sale.tipo==='domicilio' && sale.nombre){
     ctx.textAlign='left'; ctx.fillStyle='#444'; ctx.font='10px Arial, sans-serif';
