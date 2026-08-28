@@ -303,6 +303,19 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 
 /* ── ADMIN PANEL ── */
 .admin-badge{background:var(--red);color:#fff;font-size:.65rem;font-weight:800;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:.08em;}
+
+/* ── AJUSTES ── */
+.ajustes-btn{background:none;border:none;font-size:1.4rem;cursor:pointer;padding:4px 6px;border-radius:8px;transition:background .2s;}
+.ajustes-btn:active{background:rgba(255,255,255,.1);}
+.ajustes-sheet{width:100%;max-width:430px;margin:0 auto;background:var(--card2);border-radius:20px 20px 0 0;padding:22px 20px 40px;transform:translateY(100%);transition:transform .3s cubic-bezier(.22,1,.36,1);border-top:1px solid var(--border2);max-height:85vh;overflow-y:auto;}
+.overlay.open .ajustes-sheet{transform:translateY(0);}
+.ajuste-item{display:flex;align-items:center;justify-content:space-between;background:var(--card);border-radius:12px;padding:14px 16px;cursor:pointer;border:1px solid var(--border);transition:border-color .2s;}
+.ajuste-item:active{border-color:var(--yellow);}
+.ajuste-icon{font-size:1.3rem;margin-right:12px;}
+.ajuste-label{font-size:.95rem;font-weight:600;color:var(--text);}
+.ajuste-sub{font-size:.75rem;color:var(--muted);margin-top:2px;}
+.ajuste-arrow{color:var(--muted);font-size:1rem;}
+.usuarios-item{background:var(--card);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);}
 </style>
 </head>
 <body>
@@ -335,12 +348,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
         <strong id="clock">--:--</strong>
         <span id="datestr">--</span>
       </div>
-      <div class="user-badge" onclick="cerrarSesion()">
-        <span id="badge-icon">👤</span>
-        <div>
-          <div class="user-badge-name" id="badge-name">--</div>
-          <div class="user-badge-role" id="badge-role">--</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <div class="user-badge" onclick="abrirAjustes()">
+          <span id="badge-icon">👤</span>
+          <div>
+            <div class="user-badge-name" id="badge-name">--</div>
+            <div class="user-badge-role" id="badge-role">--</div>
+          </div>
         </div>
+        <button class="ajustes-btn" onclick="abrirAjustes()" title="Ajustes">⚙️</button>
       </div>
     </div>
   </div>
@@ -714,6 +730,18 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     <button class="btn-tap" onclick="abrirMPDirecto()">📲 Abrir Mercado Pago directo</button>
     <div style="height:8px;"></div>
     <button class="btn-cancel" style="width:100%;text-align:center;" onclick="closeQR()">Cerrar</button>
+  </div>
+</div>
+
+<!-- AJUSTES OVERLAY -->
+<div class="overlay" id="ajustes-overlay" onclick="cerrarAjustesOut(event)">
+  <div class="ajustes-sheet">
+    <div class="sh"></div>
+    <div class="stitle">⚙️ Ajustes</div>
+    <div class="ssub" id="ajustes-sub">Administración del sistema</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;" id="ajustes-contenido">
+      <!-- Se llena dinámicamente -->
+    </div>
   </div>
 </div>
 
@@ -1681,6 +1709,118 @@ function updateSheetBtn(){
 
 renderOrder();
 
+
+// ── AJUSTES / SETTINGS ──
+function abrirAjustes(){
+  if(!currentUser) return;
+  const sub = document.getElementById('ajustes-sub');
+  const cont = document.getElementById('ajustes-contenido');
+  sub.textContent = currentUser.displayName + ' · @' + currentUser.username;
+
+  let items = '';
+
+  // Cambiar mi PIN — disponible para todos
+  items += `
+    <div class="ajuste-item" onclick="cambiarMiPin()">
+      <div style="display:flex;align-items:center;">
+        <span class="ajuste-icon">🔑</span>
+        <div><div class="ajuste-label">Cambiar mi PIN</div><div class="ajuste-sub">Actualiza tu PIN de acceso</div></div>
+      </div>
+      <span class="ajuste-arrow">›</span>
+    </div>`;
+
+  // Solo admin
+  if(currentUser.role === 'admin'){
+    items += `
+    <div style="font-size:.7rem;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-top:8px;padding-left:4px;">Administración</div>
+    <div class="ajuste-item" onclick="abrirGestionUsuarios()">
+      <div style="display:flex;align-items:center;">
+        <span class="ajuste-icon">👥</span>
+        <div><div class="ajuste-label">Gestionar usuarios</div><div class="ajuste-sub">Agregar, editar o eliminar usuarios</div></div>
+      </div>
+      <span class="ajuste-arrow">›</span>
+    </div>`;
+  }
+
+  // Cerrar sesión
+  items += `
+    <div style="font-size:.7rem;font-weight:700;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-top:8px;padding-left:4px;">Cuenta</div>
+    <div class="ajuste-item" onclick="cerrarSesionDesdeAjustes()">
+      <div style="display:flex;align-items:center;">
+        <span class="ajuste-icon">🚪</span>
+        <div><div class="ajuste-label">Cerrar sesión</div><div class="ajuste-sub">@${currentUser.username}</div></div>
+      </div>
+      <span class="ajuste-arrow">›</span>
+    </div>`;
+
+  cont.innerHTML = items;
+  document.getElementById('ajustes-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function cerrarAjustes(){
+  document.getElementById('ajustes-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function cerrarAjustesOut(e){
+  if(e.target === document.getElementById('ajustes-overlay')) cerrarAjustes();
+}
+
+function cerrarSesionDesdeAjustes(){
+  cerrarAjustes();
+  setTimeout(()=>{
+    if(!confirm('¿Cerrar sesión de @'+currentUser.username+'?')) return;
+    currentUser = null;
+    localStorage.removeItem('kp_session');
+    document.getElementById('login-screen').style.display = 'flex';
+    document.getElementById('login-user').value = '';
+    document.getElementById('login-pin').value = '';
+    const t=document.getElementById('tab-admin'); if(t) t.remove();
+    const v=document.getElementById('view-admin'); if(v) v.remove();
+  }, 300);
+}
+
+async function abrirGestionUsuarios(){
+  cerrarAjustes();
+  setTimeout(async ()=>{
+    const snap = await db.ref('usuarios').get();
+    const data = snap.val() || {};
+    const todos = [
+      {username:'admin', role:'admin', displayName:'Administrador'},
+      ...Object.entries(data).map(([k,v])=>({username:k,...v}))
+    ];
+
+    // Crear panel de usuarios como sheet
+    let usersHTML = todos.map(u=>`
+      <div class="usuarios-item">
+        <div>
+          <div style="font-weight:600;font-size:.92rem;">${u.displayName} ${u.role==='admin'?'<span style="background:var(--red);color:#fff;font-size:.6rem;font-weight:800;padding:1px 6px;border-radius:3px;">ADMIN</span>':''}</div>
+          <div style="font-size:.72rem;color:var(--muted);">@${u.username}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button onclick="cambiarPinUsuario('${u.username}')" style="background:var(--ydim);border:1px solid rgba(255,215,0,.3);color:var(--yellow);border-radius:8px;font-size:.75rem;font-weight:700;padding:5px 10px;cursor:pointer;">🔑 PIN</button>
+          ${u.username!=='admin'?`<button onclick="eliminarUsuario('${u.username()}')" style="background:rgba(231,76,60,.15);border:1px solid rgba(231,76,60,.3);color:#E74C3C;border-radius:8px;font-size:.75rem;font-weight:700;padding:5px 10px;cursor:pointer;">🗑</button>`:''}
+        </div>
+      </div>`).join('');
+
+    // Fix eliminar button
+    usersHTML = usersHTML.replace(/eliminarUsuario\('([^']+)\(\)'\)/g, "eliminarUsuario('$1')");
+
+    const cont = document.getElementById('ajustes-contenido');
+    const sub  = document.getElementById('ajustes-sub');
+    sub.textContent = 'Usuarios registrados';
+    cont.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:8px;">${usersHTML}</div>
+      <button onclick="abrirNuevoUsuario()" style="width:100%;background:linear-gradient(135deg,var(--red),var(--red2));color:#fff;border:none;border-radius:12px;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.08em;padding:13px;cursor:pointer;margin-top:4px;">+ Agregar usuario</button>
+      <button onclick="abrirAjustes()" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;padding:11px;cursor:pointer;">‹ Volver a ajustes</button>
+    `;
+    document.getElementById('ajustes-overlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }, 350);
+}
+
+
 // ── SISTEMA DE USUARIOS ──
 let currentUser = null;
 
@@ -1725,23 +1865,11 @@ function mostrarApp(){
   document.getElementById('badge-name').textContent=currentUser.displayName;
   document.getElementById('badge-role').textContent=currentUser.role==='admin'?'Admin ⭐':'Vendedor';
   document.getElementById('badge-icon').textContent=currentUser.role==='admin'?'👑':'👤';
-  if(currentUser.role==='admin') mostrarTabAdmin();
+  // Admin options available via settings ⚙️
   configurarFirebase();
 }
 
-function cerrarSesion(){
-  if(!confirm('¿Cerrar sesión?')) return;
-  currentUser=null;
-  localStorage.removeItem('kp_session');
-  document.getElementById('login-screen').style.display='flex';
-  document.getElementById('login-user').value='';
-  document.getElementById('login-pin').value='';
-  // Limpiar tab admin si existe
-  const t=document.getElementById('tab-admin');
-  if(t) t.remove();
-  const v=document.getElementById('view-admin');
-  if(v) v.remove();
-}
+// cerrarSesion moved to cerrarSesionDesdeAjustes
 
 function configurarFirebase(){
   const ref=currentUser.role==='admin'
