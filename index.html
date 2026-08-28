@@ -324,6 +324,18 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .ajuste-sub{font-size:.75rem;color:var(--muted);margin-top:2px;}
 .ajuste-arrow{color:var(--muted);font-size:1rem;}
 .usuarios-item{background:var(--card);border-radius:10px;padding:12px 14px;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);}
+
+/* AUDITORÍA */
+.audit-item{background:var(--card);border-radius:10px;padding:11px 14px;border:1px solid var(--border);border-left:3px solid var(--muted);}
+.audit-item.delete{border-left-color:#E74C3C;}
+.audit-item.edit{border-left-color:var(--yellow);}
+.audit-item.price{border-left-color:#3498DB;}
+.audit-tipo{font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px;}
+.audit-tipo.delete{color:#E74C3C;}
+.audit-tipo.edit{color:var(--yellow);}
+.audit-tipo.price{color:#3498DB;}
+.audit-desc{font-size:.85rem;color:var(--text);margin-bottom:2px;}
+.audit-meta{font-size:.72rem;color:var(--muted);}
 </style>
 </head>
 <body>
@@ -1460,11 +1472,15 @@ function renderResumen(){
           ${badge}
         </div>
       </div>
-      <div style="display:flex;gap:8px;padding-left:2px;">
+      <div style="display:flex;gap:8px;padding-left:2px;flex-wrap:wrap;">
         <button onclick="verTicket(${realIdx})" style="flex:1;background:rgba(255,215,0,.1);border:1.5px solid rgba(255,215,0,.3);color:var(--yellow);border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:600;padding:7px;cursor:pointer;">👁 Ver ticket</button>
         ${s.tel
           ? `<button onclick="reenviarDesdeHistorial(${realIdx})" style="flex:1;background:#25D366;border:none;color:#fff;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:600;padding:7px;cursor:pointer;">📤 Reenviar</button>`
           : `<button onclick="compartirDesdeHistorial(${realIdx})" style="flex:1;background:rgba(37,211,102,.15);border:1.5px solid #25D366;color:#25D366;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:600;padding:7px;cursor:pointer;">📤 Compartir</button>`
+        }
+        ${currentUser&&currentUser.role==='admin'
+          ? `<button onclick="eliminarVenta('${s.num}')" style="background:rgba(231,76,60,.15);border:1.5px solid rgba(231,76,60,.3);color:#E74C3C;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.78rem;font-weight:600;padding:7px;cursor:pointer;">🗑 Eliminar</button>`
+          : ''
         }
       </div>
     </div>`;
@@ -1762,6 +1778,13 @@ function abrirAjustes(){
       </div>
       <span class="ajuste-arrow">›</span>
     </div>
+    <div class="ajuste-item" onclick="abrirAuditoria()">
+      <div style="display:flex;align-items:center;">
+        <span class="ajuste-icon">📋</span>
+        <div><div class="ajuste-label">Historial de cambios</div><div class="ajuste-sub">Eliminaciones, ediciones y ajustes</div></div>
+      </div>
+      <span class="ajuste-arrow">›</span>
+    </div>
     <div class="ajuste-item" onclick="cambiarMiPin()">
       <div style="display:flex;align-items:center;">
         <span class="ajuste-icon">🔑</span>
@@ -1858,8 +1881,15 @@ function editarProducto(key){
   if(isNaN(precio)||precio<=0){ alert('Precio inválido'); return; }
   const emoji=prompt('Emoji:', p.emoji);
   if(emoji===null) return;
+  const precioAnterior = p.price;
+  const nombreAnterior = p.name;
   PRODUCTS[key]={...p, name:nombre.trim(), price:precio, emoji:emoji.trim()||p.emoji};
   guardarProductosFirebase();
+  // Registrar en auditoría
+  const cambios=[];
+  if(nombreAnterior!==nombre.trim()) cambios.push(`Nombre: "${nombreAnterior}" → "${nombre.trim()}"`);
+  if(precioAnterior!==precio) cambios.push(`Precio: $${precioAnterior} → $${precio}`);
+  if(cambios.length) registrarAuditoria('edit','Producto editado: '+nombre.trim(), cambios.join(' | '));
   // Actualizar tarjeta en pantalla
   const nameEl=document.getElementById('pc-'+key)?.querySelector('.pname');
   const priceEl=document.getElementById('pc-'+key)?.querySelector('.pprice');
@@ -2097,6 +2127,57 @@ db.ref('usuarios/admin').once('value').then(snap=>{
   }
 }).catch(()=>{});
 
+// ── AUDITORÍA ──
+function registrarAuditoria(tipo, descripcion, detalle){
+  const registro={
+    tipo, descripcion,
+    detalle: detalle||'',
+    usuario: currentUser?currentUser.displayName:'Desconocido',
+    username: currentUser?currentUser.username:'?',
+    ts: Date.now()
+  };
+  db.ref('auditoria/'+'aud_'+Date.now().toString(36)).set(registro).catch(()=>{});
+}
+
+function eliminarVenta(numVenta){
+  const motivo=prompt('¿Motivo de la eliminación? (requerido)');
+  if(!motivo) return;
+  if(!confirm('¿Eliminar la orden '+numVenta+'?\nEsta acción quedará registrada.')) return;
+  const key=numVenta.replace('#','ord_');
+  db.ref('ventas/'+key).remove().then(()=>{
+    registrarAuditoria('delete','Orden eliminada: '+numVenta,'Motivo: '+motivo);
+    showToast('Orden eliminada y registrada 📋');
+    renderResumen();
+  }).catch(e=>{ alert('Error: '+e.message); });
+}
+
+async function abrirAuditoria(){
+  cerrarAjustes();
+  setTimeout(async()=>{
+    const snap=await db.ref('auditoria').get();
+    const data=snap.val()||{};
+    const registros=Object.values(data).sort((a,b)=>b.ts-a.ts);
+    const iconos={delete:'🗑',edit:'✏️',price:'💲'};
+    const labels={delete:'ELIMINACIÓN',edit:'EDICIÓN',price:'CAMBIO DE PRECIO'};
+    const filas=registros.length?registros.map(r=>{
+      const fecha=new Date(r.ts).toLocaleString('es-MX',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+      return `<div class="audit-item ${r.tipo}">
+        <div class="audit-tipo ${r.tipo}">${iconos[r.tipo]||'📝'} ${labels[r.tipo]||r.tipo}</div>
+        <div class="audit-desc">${r.descripcion}</div>
+        ${r.detalle?`<div class="audit-meta">📝 ${r.detalle}</div>`:''}
+        <div class="audit-meta">👤 ${r.usuario} · 🕐 ${fecha}</div>
+      </div>`;
+    }).join(''):'<div class="empty">Sin cambios registrados aún</div>';
+    const cont=document.getElementById('ajustes-contenido');
+    document.getElementById('ajustes-sub').textContent=registros.length+' movimiento(s)';
+    cont.innerHTML=`
+      <div style="display:flex;flex-direction:column;gap:8px;max-height:60vh;overflow-y:auto;">${filas}</div>
+      <button onclick="abrirAjustes()" style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--muted);border-radius:12px;font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;padding:11px;cursor:pointer;margin-top:4px;">‹ Volver</button>`;
+    document.getElementById('ajustes-overlay').classList.add('open');
+    document.body.style.overflow='hidden';
+  },300);
+}
+
 // Cargar lista al iniciar
 cargarListaLogin();
 
@@ -2112,16 +2193,23 @@ function mostrarApp(){
 // cerrarSesion moved to cerrarSesionDesdeAjustes
 
 function configurarFirebase(){
-  const ref=currentUser.role==='admin'
-    ? db.ref('ventas')
-    : db.ref('ventas').orderByChild('vendedor').equalTo(currentUser.username);
-  ref.on('value',snap=>{
+  // Siempre traer todas las ventas y filtrar localmente por seguridad
+  db.ref('ventas').on('value',snap=>{
     const data=snap.val();
     if(data){
-      sales=Object.values(data).sort((a,b)=>a.ts-b.ts);
+      let todasVentas=Object.values(data).sort((a,b)=>a.ts-b.ts);
+      // Filtrar por usuario si no es admin
+      if(currentUser.role!=='admin'){
+        todasVentas=todasVentas.filter(s=>s.vendedor===currentUser.username);
+      }
+      sales=todasVentas;
       localStorage.setItem('kp_sales',JSON.stringify(sales));
-      const maxNum=sales.reduce((max,s)=>{ const n=parseInt(s.num.replace('#','')); return n>max?n:max; },0);
+      const maxNum=todasVentas.length?todasVentas.reduce((max,s)=>{ const n=parseInt((s.num||'#0').replace('#','')); return n>max?n:max; },0):orderN-1;
       if(maxNum>=orderN){ orderN=maxNum+1; localStorage.setItem('kp_ord',String(orderN)); }
+      renderOrder();
+      if(document.getElementById('view-resumen').classList.contains('active')) renderResumen();
+    } else {
+      sales=[];
       renderOrder();
       if(document.getElementById('view-resumen').classList.contains('active')) renderResumen();
     }
