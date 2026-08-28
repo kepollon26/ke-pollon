@@ -1514,7 +1514,8 @@ function renderResumen(){
         <div class="hnum">${s.num}</div>
         <div class="hbody">
           <div class="hprod">${prods}</div>
-          <div class="hmeta">${s.tipo==='domicilio'&&s.nombre?'👤 '+s.nombre+' · ':''} 🕐 ${hora}${currentUser&&currentUser.role==='admin'&&s.vendedorNombre?' · 🧑‍💼 '+s.vendedorNombre:''}</div>
+          <div class="hmeta">${s.tipo==='domicilio'&&s.nombre?'👤 '+s.nombre+' · ':''} 🕐 ${hora}${currentUser&&currentUser.role==='admin'&&s.vendedorNombre?' · 🧑‍💼 '+s.vendedorNombre+(s.usuarioEliminado?'':''): ''}</div>
+          ${s.usuarioEliminado&&currentUser&&currentUser.role==='admin'?'<div style="font-size:.68rem;color:#E74C3C;margin-top:2px;">⚠️ Usuario eliminado</div>':''}
           ${s.tipo==='domicilio'&&s.dir?`<div class="hmeta">📍 ${s.dir}</div>`:''}
         </div>
         <div class="hright">
@@ -2371,10 +2372,37 @@ function guardarNuevoPin(username,pin){
 }
 
 async function eliminarUsuario(username){
-  if(!confirm('¿Eliminar usuario @'+username+'?')) return;
+  if(!confirm('¿Eliminar usuario @'+username+'?\nSus ventas se conservarán marcadas como "usuario eliminado".')) return;
+
+  // Obtener nombre antes de borrar
+  const snap = await db.ref('usuarios/'+username).get();
+  const userData = snap.val()||{};
+  const displayName = userData.displayName||username;
+
+  // Marcar sus ventas como "usuario eliminado"
+  const ventasSnap = await db.ref('ventas').get();
+  const ventas = ventasSnap.val()||{};
+  const updates = {};
+  Object.entries(ventas).forEach(([key,v])=>{
+    if(v.vendedor===username){
+      updates['ventas/'+key+'/vendedorNombre'] = displayName+' (eliminado)';
+      updates['ventas/'+key+'/usuarioEliminado'] = true;
+    }
+  });
+  if(Object.keys(updates).length) await db.ref().update(updates);
+
+  // Eliminar usuario
   await db.ref('usuarios/'+username).remove();
-  showToast('Usuario eliminado');
-  cargarUsuarios(); cargarListaLogin();
+
+  // Registrar en auditoría
+  registrarAuditoria('delete',
+    'Usuario eliminado: '+displayName+' (@'+username+')',
+    'Sus ventas fueron conservadas y marcadas como usuario eliminado'
+  );
+
+  showToast('Usuario eliminado · ventas conservadas 📋');
+  abrirGestionUsuarios();
+  cargarListaLogin();
 }
 
 // Verificar sesión guardada al cargar
